@@ -1,3 +1,7 @@
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Set;
+
 public class TxHandler {
 
     private UTXOPool utxoPool;
@@ -8,6 +12,11 @@ public class TxHandler {
      */
     public TxHandler(UTXOPool utxoPool) {
         this.utxoPool = new UTXOPool(utxoPool);
+    }
+
+    /** @return the current UTXO pool (after any accepted transactions were applied) */
+    public UTXOPool getUTXOPool() {
+        return utxoPool;
     }
 
     /**
@@ -21,6 +30,34 @@ public class TxHandler {
      */
     public boolean isValidTx(Transaction tx) {
         // IMPLEMENT THIS
+        Set<UTXO> claimed = new HashSet<UTXO>();
+        double inputSum = 0;
+
+        for (int i = 0; i < tx.numInputs(); i++) {
+            Transaction.Input in = tx.getInput(i);
+            UTXO utxo = new UTXO(in.prevTxHash, in.outputIndex);
+
+            if (!utxoPool.contains(utxo)) // (1)
+                return false;
+            if (!claimed.add(utxo)) // (3)
+                return false;
+
+            Transaction.Output spent = utxoPool.getTxOutput(utxo);
+            if (!Crypto.verifySignature(spent.address, tx.getRawDataToSign(i), in.signature)) // (2)
+                return false;
+
+            inputSum += spent.value;
+        }
+
+        double outputSum = 0;
+        for (Transaction.Output out : tx.getOutputs()) {
+            if (out.value < 0) // (4)
+                return false;
+            outputSum += out.value;
+        }
+        if(inputSum < outputSum) // (5)
+            return false;
+        return true;
     }
 
     /**
@@ -30,6 +67,35 @@ public class TxHandler {
      */
     public Transaction[] handleTxs(Transaction[] possibleTxs) {
         // IMPLEMENT THIS
+        ArrayList<Transaction> accepted = new ArrayList<Transaction>();
+        ArrayList<Transaction> remaining = new ArrayList<Transaction>();
+        for (Transaction tx : possibleTxs)
+            remaining.add(tx);
+
+        // Keep passing over the remaining txs until no more can be accepted, so a tx that spends
+        // another tx's output is accepted once its parent has been applied.
+        boolean changed = true;
+        while (changed) {
+            changed = false;
+            for (Transaction tx : new ArrayList<Transaction>(remaining)) {
+                if (isValidTx(tx)) {
+                    applyTx(tx);
+                    accepted.add(tx);
+                    remaining.remove(tx);
+                    changed = true;
+                }
+            }
+        }
+
+        return accepted.toArray(new Transaction[0]);
+    }
+
+    /** Removes the UTXOs spent by {@code tx} and adds its outputs as new UTXOs. */
+    private void applyTx(Transaction tx) {
+        for (Transaction.Input in : tx.getInputs())
+            utxoPool.removeUTXO(new UTXO(in.prevTxHash, in.outputIndex));
+        for (int j = 0; j < tx.numOutputs(); j++)
+            utxoPool.addUTXO(new UTXO(tx.getHash(), j), tx.getOutput(j));
     }
 
 }
