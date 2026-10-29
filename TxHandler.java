@@ -74,8 +74,7 @@ public class TxHandler {
         for (Transaction tx : possibleTxs)
             remaining.add(tx);
 
-        // Keep passing over the remaining txs until no more can be accepted, so a tx that spends
-        // another tx's output is accepted once its parent has been applied.
+        // passing over the txs until no more can be accepted.
         boolean changed = true;
         while (changed) {
             changed = false;
