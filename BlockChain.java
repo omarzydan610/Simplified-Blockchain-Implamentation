@@ -2,6 +2,22 @@
 // You should not have all the blocks added to the block chain in memory 
 // as it would cause a memory overflow.
 
+// I acknowledge that I am aware of the academic integrity guidelines of this
+// course, and that I worked on this assignment independently without any
+// unauthorized help with coding or testing.
+// - Omar_Zydan
+
+/*
+ * Additional exercise:
+ * Problem: the coinbase hash depends only on its value (25) and the miner's address, so two
+ * blocks mined by the same address have identical coinbase transactions with the same hash. The
+ * second one overwrites the first one's UTXO (one reward is lost), or brings back an already
+ * spent coinbase output.
+ * Bitcoin's fix: 
+ * BIP30 rejects a transaction whose hash matches an earlier one that still has unspent outputs
+ * BIP34 puts the block height in the coinbase input, so every coinbase (and its hash) is unique.
+ */
+
 import java.util.ArrayList;
 import java.util.HashMap;
 
